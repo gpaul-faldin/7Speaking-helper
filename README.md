@@ -3,8 +3,14 @@
 ## 📝 Overview
 A Chrome extension designed to assist with 7Speaking practice exercises (non-exam mode only).
 
-## 🚀 Installation Guide
+## ⚠️ Development Status
+This project is currently in active development. While functional, please note:
+- Some features may require stability improvements
+- Occasional bugs might occur during usage
 
+Feel free to report any bugs or suggest improvements by creating an issue in this repository.
+
+## 🚀 Installation Guide
 ### Method 1: Manual Installation
 1. Download the latest release (.zip file) from this repository
 2. Extract/Unzip the downloaded file to a folder on your computer
@@ -15,7 +21,6 @@ A Chrome extension designed to assist with 7Speaking practice exercises (non-exa
 7. The extension icon should now appear in your Chrome toolbar
 
 ## 🔧 Troubleshooting
-
 **Common Issues:**
 1. Extension not appearing:
    - Verify it's enabled in chrome://extensions/
