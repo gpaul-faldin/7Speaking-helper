@@ -303,10 +303,176 @@ async function transcribeRemoteAudio(audioElement) {
   }
 }
 
+async function interactionLLM(body) {
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error("Failed to get answer:", error);
+    throw error;
+  }
+}
+
+async function getAnswerWithLLMAudio(context) {
+  const question = document.querySelector(
+    'h2[class*="question_title"]'
+  ).textContent;
+  const answerDiv = document.querySelector('div[class*="choice_variant"]');
+
+  const labelSpans = answerDiv.querySelectorAll(".MuiFormControlLabel-label");
+  const answers = Array.from(labelSpans).map((span) => span.textContent.trim());
+
+  const body = {
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a helpful assistant. I will provide you with either with a Question and multiple answers and you need to pick the right one OR some context text, a question and multiple answers selection from which you need to pick the correct one. In any cases you should only answer with the corresponding letter of the answer between paranthesis (e.g. (A))",
+      },
+      {
+        role: "user",
+        content:
+          labelSpans.length !== 0
+            ? `Context: ${context} \n Question: ${question} Answers: ${answers}`
+            : `Context: ${context} \n Question: ${question}`,
+      },
+    ],
+  };
+
+  return { solution: await interactionLLM(body), answers: answers };
+}
+
+async function getAnswerWithLLMReading(context) {
+  const question = document.querySelector(".question_title").textContent;
+  const answerDiv = document.querySelector('div[class*="choice_variant"]');
+
+  const labelSpans = answerDiv.querySelectorAll(".MuiFormControlLabel-label");
+  const answers = Array.from(labelSpans).map((span) => span.textContent.trim());
+
+  const body = {
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: question
+          ? "You are a helpful assistant. I will provide you wih a question, a context string and multiple possible answers, you need to pick the right one. In any cases you should only answer with the corresponding letter of the answer between paranthesis (e.g. (A))"
+          : "You are a helpful assistant. I will provide you with a context string where there is a blank space visible with _ character, you will get a list of possible answers and you need to pick the right one. In any cases you should only answer with the corresponding letter of the answer between paranthesis (e.g. (A))",
+      },
+      {
+        role: "user",
+        content: question
+          ? `Question: ${question} Context: ${context} Answers: ${answers}`
+          : `Context: ${context}  Answers: ${answers}`,
+      },
+    ],
+  };
+
+  return { solution: await interactionLLM(body), answers: answers };
+}
+
+function addCheatButton() {
+  const existingButton = document.querySelector(".cheat-button");
+  if (existingButton) {
+    existingButton.remove();
+  }
+
+  const title = document.querySelector('h2[class*="section_title"]');
+  if (!title) {
+    console.log("Title element not found, retrying in 1 second...");
+    setTimeout(addCheatButton, 1000);
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.textContent = "Cheat";
+  button.className = "cheat-button";
+
+  button.style.marginLeft = "10px";
+  button.style.padding = "5px 10px";
+  button.style.backgroundColor = "#4CAF50";
+  button.style.color = "white";
+  button.style.border = "none";
+  button.style.borderRadius = "4px";
+  button.style.cursor = "pointer";
+
+  button.addEventListener("mouseover", () => {
+    if (!button.disabled) {
+      button.style.backgroundColor = "#45a049";
+    }
+  });
+
+  button.addEventListener("mouseout", () => {
+    if (!button.disabled) {
+      button.style.backgroundColor = "#4CAF50";
+    }
+  });
+
+  button.addEventListener("click", async () => {
+    const text = document.querySelector(
+      ".main_question_description"
+    ).textContent;
+    await getAnswerWithLLMReading(text).then((v) => {
+      const answers = document.querySelectorAll(".MuiFormControlLabel-label");
+
+      answers.forEach((answer) => {
+        if (answer.textContent.includes(v.solution)) {
+          answer.style.border = "2px solid green";
+          answer.style.backgroundColor = "rgba(0, 255, 0, 0.1)";
+          const checkmark = document.createElement("span");
+          checkmark.textContent = " ✓";
+          checkmark.style.color = "green";
+          checkmark.style.fontWeight = "bold";
+          checkmark.className = "answer-checkmark";
+          if (!answer.querySelector(".answer-checkmark")) {
+            answer.appendChild(checkmark);
+          }
+        }
+      });
+    });
+  });
+
+  title.appendChild(button);
+}
+
+function checkQuestionType() {
+  var question = document.querySelector(".section_title");
+  if (!question) {
+    console.log("Title element not found, retrying in 1 second...");
+    setTimeout(checkQuestionType, 1000);
+    return;
+  }
+
+  question = question.textContent;
+
+  if (question.includes("Reading Part")) {
+    console.log("Reading Part");
+    return addCheatButton();
+  } else if (question.includes("Listening Part")) {
+    console.log("Listening Part");
+    return addTranscribeButton();
+  }
+}
+
 function startExamMode() {
   console.log("Starting Exam Mode");
   observeQuestionChanges();
-  addTranscribeButton();
+
+  checkQuestionType();
+
+  // addTranscribeButton();
 }
 
 function addTranscribeButton() {
@@ -334,13 +500,6 @@ function addTranscribeButton() {
   button.style.borderRadius = "4px";
   button.style.cursor = "pointer";
 
-  const existingTranscription = document.querySelector(".transcription-result");
-  if (existingTranscription) {
-    button.disabled = true;
-    button.style.backgroundColor = "#cccccc";
-    button.style.cursor = "not-allowed";
-  }
-
   button.addEventListener("mouseover", () => {
     if (!button.disabled) {
       button.style.backgroundColor = "#45a049";
@@ -366,6 +525,9 @@ function addTranscribeButton() {
 
     try {
       const result = parseQuestions(await transcribeRemoteAudio(audio));
+
+      button.disabled = false;
+      button.style.backgroundColor = "#4CAF50";
 
       let transcriptionDisplay = document.querySelector(
         ".transcription-result"
@@ -459,16 +621,29 @@ function addTranscribeButton() {
         answerButton.style.backgroundColor = "#2196F3";
       });
 
-      answerButton.addEventListener("click", () => {
-        console.log("CHEATER")
-        // retrieveAnswerWithLLM();
+      answerButton.addEventListener("click", async () => {
+        await getAnswerWithLLMAudio(result).then((v) => {
+
+          const answers = document.querySelectorAll(".MuiFormControlLabel-label");
+          answers.forEach((answer) => {
+            if (answer.textContent.includes(v.solution)) {
+              answer.style.border = "2px solid green";
+              answer.style.backgroundColor = "rgba(0, 255, 0, 0.1)";
+              const checkmark = document.createElement("span");
+              checkmark.textContent = " ✓";
+              checkmark.style.color = "green";
+              checkmark.style.fontWeight = "bold";
+              checkmark.className = "answer-checkmark";
+              if (!answer.querySelector(".answer-checkmark")) {
+                answer.appendChild(checkmark);
+              }
+            }
+          });
+        });
       });
 
       transcriptionDisplay.appendChild(answerButton);
 
-      button.disabled = true;
-      button.style.backgroundColor = "#cccccc";
-      button.style.cursor = "not-allowed";
       button.textContent = "Transcribe Audio";
     } catch (error) {
       console.error("Transcription failed:", error);
@@ -526,7 +701,6 @@ function initExamMode() {
   // etc.
 }
 
-// Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
   console.log("Page loaded, initializing appropriate mode");
   if (examMode === false) {
