@@ -1,6 +1,7 @@
 console.log("7Speaking Answer Helper loaded!");
 
-const OPENAI_API_KEY = "";
+const OPENAI_API_KEY =
+  "";
 
 let storedAnswers = [];
 let currentTitle = "";
@@ -33,62 +34,66 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function parseQuestions(text) {
-  // Split the text into individual questions
-  const questionsRaw = text.trim().split("?");
-  const questionsParsed = [];
+  const preserveAbbreviations = (text) => {
+    return text
+      .replace(/Mr\./g, "MR_PLACEHOLDER")
+      .replace(/Mrs\./g, "MRS_PLACEHOLDER")
+      .replace(/Ms\./g, "MS_PLACEHOLDER")
+      .replace(/Dr\./g, "DR_PLACEHOLDER")
+      .replace(/Prof\./g, "PROF_PLACEHOLDER")
+      .replace(/etc\./g, "ETC_PLACEHOLDER")
+      .replace(/i\.e\./g, "IE_PLACEHOLDER")
+      .replace(/e\.g\./g, "EG_PLACEHOLDER");
+  };
 
-  for (let questionText of questionsRaw) {
-    // Skip empty strings
-    if (!questionText.trim()) {
-      continue;
+  const restoreAbbreviations = (text) => {
+    return text
+      .replace(/MR_PLACEHOLDER/g, "Mr.")
+      .replace(/MRS_PLACEHOLDER/g, "Mrs.")
+      .replace(/MS_PLACEHOLDER/g, "Ms.")
+      .replace(/DR_PLACEHOLDER/g, "Dr.")
+      .replace(/PROF_PLACEHOLDER/g, "Prof.")
+      .replace(/ETC_PLACEHOLDER/g, "etc.")
+      .replace(/IE_PLACEHOLDER/g, "i.e.")
+      .replace(/EG_PLACEHOLDER/g, "e.g.");
+  };
+
+  let processedText = preserveAbbreviations(text);
+
+  const splitItems = (text) => {
+    const itemPattern =
+      /([^.?]+[.?])\s*A\.\s+([^.]+\.)\s*B\.\s+([^.]+\.)\s*C\.\s+([^.]+\.)/g;
+    const items = [];
+    let match;
+
+    while ((match = itemPattern.exec(text)) !== null) {
+      const [_, question, answerA, answerB, answerC] = match;
+      items.push({
+        question: question.trim(),
+        answers: {
+          A: answerA.trim(),
+          B: answerB.trim(),
+          C: answerC.trim(),
+        },
+      });
     }
+    return items;
+  };
 
-    // Split into question and answers
-    const parts = questionText.split("A.");
+  const formatItem = (item) => {
+    return `${item.question}\nA. ${item.answers.A}\nB. ${item.answers.B}\nC. ${item.answers.C}`;
+  };
 
-    if (parts.length !== 2) {
-      continue;
-    }
+  const items = splitItems(processedText);
+  const formattedItems = items.map(formatItem);
 
-    const question = parts[0].trim();
-    const answersText = "A." + parts[1];
+  const cleaned = restoreAbbreviations(formattedItems.join("\n\n")).split(
+    "\n\n"
+  );
 
-    // Parse answers
-    const answers = {};
-    const answerLetters = ["A", "B", "C"];
+  if (cleaned.length === 1) return text;
 
-    for (let answerLetter of answerLetters) {
-      const pattern = `${answerLetter}.`;
-      const splitResult = answersText.split(pattern);
-
-      if (splitResult.length > 1) {
-        // Get the answer text up to the next letter or end
-        let answerText = splitResult[1];
-
-        // Find where the next answer starts (if it exists)
-        for (let nextLetter of ["B", "C"]) {
-          const nextPattern = `${nextLetter}.`;
-          if (answerText.includes(nextPattern)) {
-            answerText = answerText.split(nextPattern)[0];
-          }
-        }
-
-        answers[answerLetter] = answerText.trim();
-      }
-    }
-
-    questionsParsed.push({
-      question: question + "?",
-      answers: answers,
-    });
-  }
-
-  return questionsParsed;
-}
-
-function formatParsedQuestions(parsedQuestions) {
-  const formattedQuestions = [];
-  return parsedQuestions;
+  return cleaned;
 }
 
 function checkCurrentQuestion() {
@@ -258,6 +263,10 @@ async function transcribeAudio(audioFileOrUrl, isUrl = false) {
 
     formData.append("model", "whisper-1");
     formData.append("response_format", "json");
+    formData.append(
+      "prompt",
+      "For any multiple choice questions, format the output as follows:[Question]?\nA. [Answer]\nB. [Answer]\nC. [Answer]\n"
+    );
 
     // Make the OpenAI API request
     const response = await fetch(
@@ -325,13 +334,23 @@ function addTranscribeButton() {
   button.style.borderRadius = "4px";
   button.style.cursor = "pointer";
 
-  // Add hover effect
+  const existingTranscription = document.querySelector(".transcription-result");
+  if (existingTranscription) {
+    button.disabled = true;
+    button.style.backgroundColor = "#cccccc";
+    button.style.cursor = "not-allowed";
+  }
+
   button.addEventListener("mouseover", () => {
-    button.style.backgroundColor = "#45a049";
+    if (!button.disabled) {
+      button.style.backgroundColor = "#45a049";
+    }
   });
 
   button.addEventListener("mouseout", () => {
-    button.style.backgroundColor = "#4CAF50";
+    if (!button.disabled) {
+      button.style.backgroundColor = "#4CAF50";
+    }
   });
 
   button.addEventListener("click", async () => {
@@ -346,16 +365,12 @@ function addTranscribeButton() {
     button.style.backgroundColor = "#cccccc";
 
     try {
-      const result = formatParsedQuestions(
-        parseQuestions(await transcribeRemoteAudio(audio))
-      );
+      const result = parseQuestions(await transcribeRemoteAudio(audio));
 
-      // Keep any existing transcription box
       let transcriptionDisplay = document.querySelector(
         ".transcription-result"
       );
 
-      // Only create a new one if it doesn't exist
       if (!transcriptionDisplay) {
         transcriptionDisplay = document.createElement("div");
         transcriptionDisplay.className = "transcription-result";
@@ -364,13 +379,97 @@ function addTranscribeButton() {
         transcriptionDisplay.style.backgroundColor = "#f5f5f5";
         transcriptionDisplay.style.borderRadius = "4px";
         transcriptionDisplay.style.border = "1px solid #ddd";
+        transcriptionDisplay.style.maxHeight = "400px";
+        transcriptionDisplay.style.overflowY = "auto";
         title.parentElement.insertBefore(
           transcriptionDisplay,
           title.nextSibling
         );
       }
 
-      transcriptionDisplay.textContent = result;
+      transcriptionDisplay.innerHTML = "";
+
+      if (Array.isArray(result)) {
+        result.forEach((item, index) => {
+          const qaContainer = document.createElement("div");
+          qaContainer.style.marginBottom = "20px";
+          if (index === result.length - 1) {
+            qaContainer.style.marginBottom = "0";
+          }
+
+          const parts = item.split("\n");
+          const question = parts[0];
+          const answers = parts.slice(1);
+
+          const questionElem = document.createElement("p");
+          questionElem.textContent = `${index + 1}. ${question}`;
+          questionElem.style.fontWeight = "bold";
+          questionElem.style.marginBottom = "8px";
+          questionElem.style.color = "#333";
+
+          const answersList = document.createElement("ul");
+          answersList.style.margin = "0 0 0 20px";
+          answersList.style.paddingLeft = "0";
+
+          answers.forEach((answer) => {
+            const answerItem = document.createElement("li");
+            answerItem.textContent = answer;
+            answerItem.style.marginBottom = "4px";
+            answerItem.style.color = "#666";
+            answersList.appendChild(answerItem);
+          });
+
+          qaContainer.appendChild(questionElem);
+          qaContainer.appendChild(answersList);
+
+          if (index !== result.length - 1) {
+            const separator = document.createElement("hr");
+            separator.style.margin = "20px 0";
+            separator.style.border = "none";
+            separator.style.borderTop = "1px solid #ddd";
+            qaContainer.appendChild(separator);
+          }
+
+          transcriptionDisplay.appendChild(qaContainer);
+        });
+      } else {
+        const textContainer = document.createElement("div");
+        textContainer.style.marginBottom = "15px";
+        textContainer.textContent = result;
+        transcriptionDisplay.appendChild(textContainer);
+      }
+
+      const answerButton = document.createElement("button");
+      answerButton.textContent = "Get Answer";
+      answerButton.style.marginTop = "15px";
+      answerButton.style.padding = "8px 16px";
+      answerButton.style.backgroundColor = "#2196F3";
+      answerButton.style.color = "white";
+      answerButton.style.border = "none";
+      answerButton.style.borderRadius = "4px";
+      answerButton.style.cursor = "pointer";
+      answerButton.style.display = "block";
+      answerButton.style.width = "100%";
+
+      answerButton.addEventListener("mouseover", () => {
+        answerButton.style.backgroundColor = "#1976D2";
+      });
+
+      answerButton.addEventListener("mouseout", () => {
+        answerButton.style.backgroundColor = "#2196F3";
+      });
+
+      answerButton.addEventListener("click", () => {
+        console.log("CHEATER")
+        // retrieveAnswerWithLLM();
+      });
+
+      transcriptionDisplay.appendChild(answerButton);
+
+      button.disabled = true;
+      button.style.backgroundColor = "#cccccc";
+      button.style.cursor = "not-allowed";
+      button.textContent = "Transcribe Audio";
     } catch (error) {
       console.error("Transcription failed:", error);
       button.style.backgroundColor = "#ff4444";
@@ -379,13 +478,10 @@ function addTranscribeButton() {
         button.style.backgroundColor = "#4CAF50";
         button.textContent = "Retry Transcription";
         button.disabled = false;
+        button.style.cursor = "pointer";
       }, 2000);
       return;
     }
-
-    button.disabled = false;
-    button.textContent = "Transcribe Audio";
-    button.style.backgroundColor = "#4CAF50";
   });
 
   title.appendChild(button);
