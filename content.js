@@ -1,7 +1,6 @@
 console.log("7Speaking Answer Helper loaded!");
 
-const OPENAI_API_KEY =
-  "";
+const OPENAI_API_KEY ="";
 
 let storedAnswers = [];
 let currentTitle = "";

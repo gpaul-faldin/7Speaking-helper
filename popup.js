@@ -2,31 +2,37 @@ document.addEventListener("DOMContentLoaded", function () {
   const toggle = document.getElementById("modeToggle");
   const status = document.getElementById("status");
 
-  // Load saved mode
-  chrome.storage.local.get(["examMode"], function (result) {
-    toggle.checked = result.examMode || false;
-    updateStatus(result.examMode);
+  // Initialize popup state
+  chrome.storage.local.get(["activated"], function (result) {
+    toggle.checked = result.activated || false;
+    updateStatus(result.activated);
+    console.log("Popup initialized with state:", result.activated);
   });
 
-  // Handle mode changes
-  toggle.addEventListener("change", function () {
-    const examMode = toggle.checked;
-    chrome.storage.local.set({ examMode: examMode });
-    updateStatus(examMode);
+  toggle.addEventListener("change", async function () {
+    const activated = toggle.checked;
+    console.log("Toggle changed to:", activated);
 
-    // Notify content script of mode change
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          type: "MODE_CHANGED",
-          examMode: examMode,
-        });
+    // Update storage
+    await chrome.storage.local.set({ activated: activated });
+    updateStatus(activated);
+
+    // Send message to background script
+    chrome.runtime.sendMessage(
+      {
+        type: MessageTypes.MODE_CHANGED,
+        activated: activated,
+      },
+      (response) => {
+        console.log("Background script response:", response);
       }
-    });
+    );
   });
 
-  function updateStatus(examMode) {
-    status.textContent = examMode ? "Exam Mode" : "Training Mode";
-    status.className = `status ${examMode ? "exam" : "training"}`;
+  function updateStatus(activated) {
+    status.textContent = activated
+      ? "Cheating in progress"
+      : "Nothing to see here";
+    status.className = `status ${activated ? "cheating" : "nothing"}`;
   }
 });

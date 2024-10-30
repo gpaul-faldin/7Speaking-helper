@@ -1,0 +1,4 @@
+const MessageTypes = {
+  MODE_CHANGED: "MODE_CHANGED",
+  TOGGLE_CHEAT: "TOGGLE_CHEAT",
+};

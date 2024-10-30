@@ -2,19 +2,31 @@
   "manifest_version": 3,
   "name": "7Speaking Answer Helper",
   "version": "1.0",
-  "description": "Helps with 7Speaking tests",
-  "permissions": ["webRequest", "storage", "activeTab"],
-  "host_permissions": ["*://*.7speaking.com/*", "https://api.openai.com/*"],
+  "description": "Helper extension for 7Speaking",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
   "action": {
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["*://*.7speaking.com/*"],
-      "js": ["content.js"]
+      "matches": [
+        "*://*.7speaking.com/*"
+      ],
+      "css": [
+        "style/button.css"
+      ],
+      "js": [
+        "utils/constants.js",
+        "content/cheatModeManager.js",
+        "content/content.js"
+      ]
     }
   ]
 }
