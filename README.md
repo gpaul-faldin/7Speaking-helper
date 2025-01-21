@@ -2,6 +2,7 @@
 
 ## 📝 Overview
 A Chrome extension designed to assist with 7Speaking (cheat).
+Do not that this tool/extension does not automagicly click on the right answers. It only tells you which one is correct and you need to manualy select/write it.
 
 ## ⚠️ Development Status
 This project is currently in active development. While functional, please note:
