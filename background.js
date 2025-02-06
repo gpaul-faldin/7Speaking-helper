@@ -2,7 +2,7 @@ console.log("Background script started at:", new Date().toLocaleString());
 
 const processedUrls = new Set();
 
-chrome.webRequest.onResponseStarted.addListener(
+chrome.webRequest.onCompleted.addListener(
   function (details) {
     if (processedUrls.has(details.url)) {
       return;
@@ -21,7 +21,7 @@ chrome.webRequest.onResponseStarted.addListener(
 
       setTimeout(() => {
         processedUrls.delete(details.url);
-      }, 5000);
+      }, 15000);
 
       fetch(details.url)
         .then((response) => response.json())

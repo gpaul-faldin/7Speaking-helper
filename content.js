@@ -55,6 +55,8 @@ function checkCurrentQuestion() {
     }
   });
 
+  console.log(storedAnswers);
+
   if (currentQuestion) {
     if (currentQuestion.variant === "choice") {
       handleMultipleChoice(currentQuestion);
