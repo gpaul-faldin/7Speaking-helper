@@ -64,5 +64,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Chrome Extension API
 - DOM Manipulation
 - HTML/CSS
-- OpenAI API (optional)
+- OpenAI API
 <!-- PORTFOLIO_METADATA_END -->
