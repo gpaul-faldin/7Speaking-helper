@@ -53,11 +53,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 7Speaking Helper is a Chrome extension designed to assist users with 7Speaking language learning platform and TOEIC tests. It provides the correct answers to exercises and tests, making the learning process more efficient while helping users achieve better scores.
 
 ### 🎯 Key Features
-- **Answer Assistance**: Identifies correct answers for various exercise types
-- **TOEIC Test Support**: Helps with TOEIC preparation and practice tests
-- **Manual Selection Required**: Shows correct answers but requires user to select them
-- **Browser Integration**: Seamlessly integrates with Chrome browser
-- **Exam Mode**: Optional OpenAI API integration for advanced exam assistance
+- Identifies correct answers for various exercise types
+- Helps with TOEIC preparation and practice tests
+- Shows correct answers but requires user to select them
+- Seamlessly integrates with Chrome browser
+- Optional OpenAI API integration for advanced exam assistance
 
 ### 🛠️ Technology Stack
 - JavaScript
